@@ -78,7 +78,7 @@ class ApplicationTestCase(unittest.TestCase):
             'message-type': 'metric',
             'metric-type': 'incr',
             'metric-label': 'i.haz.clikd.cheezburgr',
-            'metric-value': None,
+            'metric-value': None,  # Also tests that `None' becomes 1.
             }
         environ = {'REQUEST_METHOD': 'POST'}
         setup_testing_defaults(environ)
@@ -142,11 +142,61 @@ class ApplicationTestCase(unittest.TestCase):
         environ['wsgi.input'].write(json.dumps(metric_data))
         environ['wsgi.input'].seek(0)
 
-        with self.assertRaises(NotImplementedError):
+        from cnxlogging import InvalidMetricType
+        with self.assertRaises(InvalidMetricType):
             resp_body = self.app.handle_metric(metric_data)
 
         resp_body = self.app(environ, self.start_response)
         self.assertEqual(self.resp_args[0], '500 Internal Server Error')
         self.assertEqual(self.resp_args[1], [('Content-type', 'text/plain')])
-        self.fail('purposeful failure, because the response body is in flux')
-        self.assertEqual(resp_body, [''])
+        self.assertEqual(resp_body,
+                         ['InvalidMetricType: Invalid metric type: smudge'])
+
+
+class StatsApplicationTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.log_handler = LogCapturingHandler(self)
+
+        from cnxlogging import _StatsLoggingClient
+        self.statist = _StatsLoggingClient()
+        self.statist._logger.setLevel(logging.INFO)
+        self.statist._logger.addHandler(self.log_handler)
+
+        logger = logging.getLogger(self.__class__.__name__)
+        logger.setLevel(logging.INFO)
+        logger.addHandler(self.log_handler)
+
+        from cnxlogging import Application
+        self.app = Application(self.statist, logger)
+
+    def start_response(self, *args, **kwargs):
+        self.resp_args = args
+        self.resp_kwargs = kwargs
+
+    def test_stats_w_logging_client(self):
+        # In the case where a statsd server has not been configured,
+        #   stats info is sent to a log using a custom class that provides
+        #   the same interface as the statsd.StatsClient.
+        metric_data = {
+            'message-type': 'metric',
+            'metric-type': 'timing',
+            'metric-label': 'i.haz.thunkd.cheezburgr',
+            'metric-value': 300,
+            }
+        environ = {'REQUEST_METHOD': 'POST'}
+        setup_testing_defaults(environ)
+        # Assign the posted message.
+        environ['wsgi.input'].write(json.dumps(metric_data))
+        environ['wsgi.input'].seek(0)
+
+        resp_body = self.app(environ, self.start_response)
+
+        # Check response, smoke test.
+        self.assertEqual(resp_body, [])
+        self.assertEqual(self.resp_args[0].upper(), '200 OK')
+        self.assertEqual(self.resp_args[1], [])
+
+        # Check the metric was accepted.
+        self.assertEqual([x.msg for x in self.logged],
+                         ['i.haz.thunkd.cheezburgr:300|ms'])

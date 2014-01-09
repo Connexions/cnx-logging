@@ -19,6 +19,21 @@ SETTINGS_KEY__STATSD_HOST = 'statsd.host'
 SETTINGS_KEY__STATSD_PORT = 'statsd.port'
 SETTINGS_KEY__STATSD_PREFIX = 'statsd.prefix'
 
+ACCEPTED_METRIC_TYPES = ('incr', 'gauge', 'timing',)
+
+
+class BaseHandlingError(Exception):
+    """Base exception for exceptions that happen inside
+    the log and metric handlers.
+    """
+
+
+class InvalidMetricType(BaseHandlingError):
+
+    def __init__(self, type_):
+        message = 'Invalid metric type: {}'.format(type_)
+        super(InvalidMetricType, self).__init__(message)
+
 
 class _StatsLoggingClient(statsd.StatsClient):
     """This provides the same interface as statsd.StatsClient to make
@@ -105,11 +120,15 @@ class Application:
         self.logger.info(payload['log-message'])
 
     def handle_metric(self, payload):
-        # FIXME Only accepting `incr` metric,
-        #       because that's all the original implemenation accepted.
-        if payload['metric-type'] != 'incr':
-            raise NotImplementedError("Only accepting `incr' request.")
-        self.statist.incr(payload['metric-label'])
+        metric_type = payload['metric-type']
+        if metric_type not in ACCEPTED_METRIC_TYPES:
+            raise InvalidMetricType(metric_type)
+        method = getattr(self.statist, metric_type)
+
+        label = payload['metric-label']
+        value = payload.get('metric-value', None)
+        value = value is None and 1 or value
+        method(label, value)
 
 
 def paste_app_factory(global_config, **local_config):
