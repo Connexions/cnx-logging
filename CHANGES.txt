@@ -1,0 +1,8 @@
+0.x
+---
+
+0.0
+---
+
+- Initialized project from existing specification found in
+  rhaptos2.repo [pumazi]
