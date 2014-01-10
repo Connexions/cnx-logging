@@ -19,7 +19,7 @@ setup(
     url="https://github.com/connexions/cnx-logging",
     license='AGPL, See also LICENSE.txt',
     description=description,
-    packages=['cnxlogging'],
+    py_modules=['cnxlogging'],
     include_package_data=False,
     install_requires=install_requires,
     extra_requires=extra_requires,
