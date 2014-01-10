@@ -1,6 +1,9 @@
 0.x
 ---
 
+- Added path routing for metric or log acceptance instead of doing
+  the routing after data parsing. [pumazi]
+
 0.0
 ---
 

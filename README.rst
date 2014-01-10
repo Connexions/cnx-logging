@@ -59,11 +59,28 @@ Running tests
 The tests use the standard library ``unittest`` package
 and can therefore be run with minimal effort.
 ::
+
     $ python -m unittest discover
 
 Or::
 
     $ python setup.py test
+
+API
+---
+
+:/metric: Accepts a JSON formatted POST containing
+	  the metric ``type``, ``label`` and ``value``.
+
+	  For example::
+
+	      {"type": "incr", "label": "i.haz.clikd.cheezburgr"}
+
+:/log: Accepts a JSON formatted POST contains a ``message``.
+
+       For example::
+
+	   {"message": "Smoo clikd on a cheezburgr"}
 
 License
 -------

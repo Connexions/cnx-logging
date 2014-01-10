@@ -75,12 +75,14 @@ class ApplicationTestCase(unittest.TestCase):
 
     def test_metric_acceptance(self):
         metric_data = {
-            'message-type': 'metric',
-            'metric-type': 'incr',
-            'metric-label': 'i.haz.clikd.cheezburgr',
-            'metric-value': None,  # Also tests that `None' becomes 1.
+            'type': 'incr',
+            'label': 'i.haz.clikd.cheezburgr',
+            ##'value': None,  # Tests that missing value or `None' becomes 1.
             }
-        environ = {'REQUEST_METHOD': 'POST'}
+        environ = {
+            'PATH_INFO': '/metric',
+            'REQUEST_METHOD': 'POST',
+            }
         setup_testing_defaults(environ)
         # Assign the posted message.
         environ['wsgi.input'].write(json.dumps(metric_data))
@@ -99,10 +101,12 @@ class ApplicationTestCase(unittest.TestCase):
     def test_log_acceptance(self):
         message = 'Smoo clikd on a cheezburgr'
         metric_data = {
-            'message-type': 'log',
-            'log-message': message,
+            'message': message,
             }
-        environ = {'REQUEST_METHOD': 'POST'}
+        environ = {
+            'PATH_INFO': '/log',
+            'REQUEST_METHOD': 'POST',
+            }
         setup_testing_defaults(environ)
         # Assign the posted message.
         environ['wsgi.input'].write(json.dumps(metric_data))
@@ -131,12 +135,14 @@ class ApplicationTestCase(unittest.TestCase):
 
     def test_invalid_metric_type(self):
         metric_data = {
-            'message-type': 'metric',
-            'metric-type': 'smudge',
-            'metric-label': 'doo.be.doo.be.do',
-            'metric-value': None,
+            'type': 'smudge',
+            'label': 'doo.be.doo.be.do',
+            'value': None,
             }
-        environ = {'REQUEST_METHOD': 'POST'}
+        environ = {
+            'PATH_INFO': '/metric',
+            'REQUEST_METHOD': 'POST',
+            }
         setup_testing_defaults(environ)
         # Assign the posted message.
         environ['wsgi.input'].write(json.dumps(metric_data))
@@ -179,12 +185,14 @@ class StatsApplicationTestCase(unittest.TestCase):
         #   stats info is sent to a log using a custom class that provides
         #   the same interface as the statsd.StatsClient.
         metric_data = {
-            'message-type': 'metric',
-            'metric-type': 'timing',
-            'metric-label': 'i.haz.thunkd.cheezburgr',
-            'metric-value': 300,
+            'type': 'timing',
+            'label': 'i.haz.thunkd.cheezburgr',
+            'value': 300,
             }
-        environ = {'REQUEST_METHOD': 'POST'}
+        environ = {
+            'PATH_INFO': '/metric',
+            'REQUEST_METHOD': 'POST',
+            }
         setup_testing_defaults(environ)
         # Assign the posted message.
         environ['wsgi.input'].write(json.dumps(metric_data))

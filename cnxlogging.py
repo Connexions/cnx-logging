@@ -21,6 +21,8 @@ SETTINGS_KEY__STATSD_PREFIX = 'statsd.prefix'
 
 ACCEPTED_METRIC_TYPES = ('incr', 'gauge', 'timing',)
 
+logger = logging.getLogger(__name__)
+
 
 class BaseHandlingError(Exception):
     """Base exception for exceptions that happen inside
@@ -84,22 +86,22 @@ class Application:
     def __init__(self, statist, logger, path=None):
         self.statist = statist
         self.logger = logger
-        self._message_type_handlers = {
-            'log': self.handle_log,
-            'metric': self.handle_metric,
-            }
 
     def __call__(self, environ, start_response):
         if environ['REQUEST_METHOD'] != 'POST':
             return self.not_found(environ, start_response)
 
-        payload = self._parse(environ)
-        # ??? Why are we smashing the type in the data
-        #     rather than using a path based routing mechanism?
-        handler = self._message_type_handlers[payload['message-type']]
+        # Routing (poorly, but simply done).
+        if environ['PATH_INFO'] == '/metric':
+            handler = self.handle_metric
+        elif environ['PATH_INFO'] == '/log':
+            handler = self.handle_log
+        else:
+            return self.not_found(environ, start_response)
 
+        # Handle errors and don't send the entire traceback.
         try:
-            handler(payload)
+            handler(self._parse_message_body(environ))
         except Exception as exc:
             start_response('500 Internal Server Error',
                            [('Content-type', 'text/plain')])
@@ -107,29 +109,30 @@ class Application:
         else:
             start_response('200 OK', [])
             resp = []
+
         return resp
 
     def not_found(self, environ, start_response):
         start_response('404 Not Found', [])
         return []
 
-    def _parse(self, environ):
+    def _parse_message_body(self, environ):
         return json.load(environ['wsgi.input'])
 
     def handle_log(self, payload):
-        self.logger.info(payload['log-message'])
+        self.logger.info(payload['message'])
 
     def handle_metric(self, payload):
-        metric_type = payload['metric-type']
+        metric_type = payload['type']
         if metric_type not in ACCEPTED_METRIC_TYPES:
             raise InvalidMetricType(metric_type)
         method = getattr(self.statist, metric_type)
 
-        label = payload['metric-label']
-        value = payload.get('metric-value', None)
+        label = payload['label']
+        value = payload.get('value', None)
         value = value is None and 1 or value
         method(label, value)
-
+        
 
 def paste_app_factory(global_config, **local_config):
     """Makes a WSGI application using the ``PasteDeploy`` interface."""
